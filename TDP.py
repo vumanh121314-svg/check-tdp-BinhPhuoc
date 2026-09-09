@@ -121,6 +121,19 @@ try:
                     top5 = grouped.head(5).copy()
                     top5['Khoảng cách (m)'] = top5['Khoảng cách (m)'].round(2)
 
+                    # --- KIỂM TRA ĐIỀU KIỆN 2KM (2000m) ---
+                    min_dist = top5.iloc[0]['Khoảng cách (m)']
+                    nearest_name = top5.iloc[0][col_ten_tram]
+
+                    if min_dist >= 2000:
+                        st.success(
+                            f"🎉 **KẾT QUẢ: ĐẠT** (Trạm gần nhất: **{nearest_name}** cách **{min_dist:,.2f} m** > 2km)"
+                        )
+                    else:
+                        st.error(
+                            f"⚠️ **KẾT QUẢ: KHÔNG ĐẠT** (Trạm gần nhất: **{nearest_name}** chỉ cách **{min_dist:,.2f} m** < 2km)"
+                        )
+
                     st.subheader("🎯 Kết quả 5 trạm gần nhất:")
 
                     # Mã HTML hiển thị bảng
@@ -167,6 +180,24 @@ try:
                         .copy-btn:hover {
                             background-color: #d33a3a;
                         }
+                        .badge-pass {
+                            background-color: #28a745;
+                            color: white;
+                            padding: 4px 8px;
+                            border-radius: 4px;
+                            font-weight: bold;
+                            font-size: 12px;
+                            display: inline-block;
+                        }
+                        .badge-fail {
+                            background-color: #dc3545;
+                            color: white;
+                            padding: 4px 8px;
+                            border-radius: 4px;
+                            font-weight: bold;
+                            font-size: 12px;
+                            display: inline-block;
+                        }
                     </style>
 
                     <script>
@@ -188,6 +219,7 @@ try:
                             <thead>
                                 <tr>
                                     <th style="width: 40px; text-align: center;"></th>
+                                    <th>Kết quả (2km)</th>
                                     <th>Khoảng cách (m)</th>
                                     <th>Tên Trạm</th>
                                     <th>Mã Trạm</th>
@@ -209,10 +241,18 @@ try:
                         coord_str = f"{lat_val}, {long_val}"
                         loai_tram_val = str(row['Loại Trạm Temp']) if row['Loại Trạm Temp'] != "" else "-"
                         
+                        dist_val = row['Khoảng cách (m)']
+                        # Kiểm tra từng trạm: >= 2000m là Đạt, < 2000m là Không đạt
+                        if dist_val >= 2000:
+                            status_badge = '<span class="badge-pass">✔ Đạt</span>'
+                        else:
+                            status_badge = '<span class="badge-fail">✖ Không đạt</span>'
+
                         html_code += f"""
                             <tr>
                                 <td style="text-align: center; color: #888888; font-weight: bold;">{idx}</td>
-                                <td><b>{row['Khoảng cách (m)']}</b></td>
+                                <td>{status_badge}</td>
+                                <td><b>{dist_val:,.2f}</b></td>
                                 <td>{row[col_ten_tram]}</td>
                                 <td>{row[col_ma_tram]}</td>
                                 <td>{row[col_trang_thai]}</td>
