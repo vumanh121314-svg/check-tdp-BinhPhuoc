@@ -45,7 +45,7 @@ set_vgreen_background()
 
 st.title("🔋 Tra cứu khoảng cách tủ đổi pin V-Green gần nhất")
 
-# ==================== KHU VỰC BẢN ĐỒ & ĐỊNH VỊ VỊ TRÍ ĐANG ĐỨNG ====================
+# ==================== KHU VỰC BẢN ĐỒ & ĐỊNH VỊ GPS ====================
 st.markdown("### 🗺️ Bản đồ & Định vị vị trí đang đứng")
 st.caption("Bấm nút **'Lấy vị trí hiện tại của tôi (GPS)'** để thiết bị tự định vị tọa độ bạn đang đứng, hoặc click trực tiếp lên bản đồ.")
 
@@ -121,7 +121,6 @@ map_html = """
 
         var map = L.map('map').setView([initLat, initLng], 14);
 
-        // Lớp bản đồ Google Maps
         L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
             maxZoom: 20,
             attribution: '© Google Maps'
@@ -138,7 +137,7 @@ map_html = """
 
             var statusEl = document.getElementById('status-msg');
             if (accuracyMeters !== undefined) {
-                statusEl.innerText = "✅ Đã xác định GPS chính xác (bán kính sai số ~" + Math.round(accuracyMeters) + "m)";
+                statusEl.innerText = "✅ Đã xác định GPS chính xác (sai số ~" + Math.round(accuracyMeters) + "m)";
                 statusEl.style.color = "#4ade80";
             } else {
                 statusEl.innerText = "👉 Đã chọn điểm thủ công trên bản đồ";
@@ -146,7 +145,6 @@ map_html = """
             }
         }
 
-        // 1. Hàm định vị vị trí hiện tại (GPS thiết bị)
         function locateMe() {
             var statusEl = document.getElementById('status-msg');
             statusEl.innerText = "⏳ Đang tìm tín hiệu GPS vệ tinh...";
@@ -163,11 +161,9 @@ map_html = """
                     var curLng = position.coords.longitude;
                     var acc = position.coords.accuracy;
 
-                    // Di chuyển bản đồ & ghim tới vị trí người dùng
                     map.setView([curLat, curLng], 16);
                     marker.setLatLng([curLat, curLng]);
 
-                    // Vẽ vòng tròn thể hiện bán kính sai số GPS
                     if (accuracyCircle) {
                         map.removeLayer(accuracyCircle);
                     }
@@ -180,19 +176,18 @@ map_html = """
 
                     updateCoordUI(curLat, curLng, acc);
 
-                    // Tự động sao chép tọa độ vào clipboard
                     var coordStr = curLat.toFixed(6) + ", " + curLng.toFixed(6);
                     navigator.clipboard.writeText(coordStr);
-                    alert("📍 Đã xác định vị trí của bạn:\\n" + coordStr + "\\n(Đã tự động Copy, hãy dán vào ô bên dưới)");
+                    alert("📍 Đã xác định vị trí:\\n" + coordStr + "\\n(Đã tự động Copy)");
                 },
                 function(error) {
                     var msg = "Lỗi khi lấy vị trí: ";
                     switch(error.code) {
                         case error.PERMISSION_DENIED:
-                            msg += "Bạn đã từ chối cấp quyền truy cập vị trí. Hãy bấm icon ổ khóa trên thanh địa chỉ duyệt web để bật quyền vị trí.";
+                            msg += "Bạn đã từ chối cấp quyền vị trí. Vui lòng bật lại quyền vị trí trên trình duyệt.";
                             break;
                         case error.POSITION_UNAVAILABLE:
-                            msg += "Không có tín hiệu GPS/Mạng khả dụng.";
+                            msg += "Không có tín hiệu GPS.";
                             break;
                         case error.TIMEOUT:
                             msg += "Quá thời gian phản hồi GPS.";
@@ -204,22 +199,16 @@ map_html = """
                     statusEl.style.color = "#f87171";
                     alert(msg);
                 },
-                {
-                    enableHighAccuracy: true, // Kích hoạt GPS độ chính xác cao
-                    timeout: 12000,
-                    maximumAge: 0
-                }
+                { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
             );
         }
 
-        // 2. Click chọn thủ công
         map.on('click', function(e) {
             marker.setLatLng(e.latlng);
             if (accuracyCircle) { map.removeLayer(accuracyCircle); }
             updateCoordUI(e.latlng.lat, e.latlng.lng);
         });
 
-        // 3. Kéo thả marker
         marker.on('dragend', function(e) {
             var pos = marker.getLatLng();
             if (accuracyCircle) { map.removeLayer(accuracyCircle); }
@@ -278,7 +267,7 @@ try:
 
     df_clean['Loại Trạm Temp'] = df_clean.apply(extract_loai_tram, axis=1)
 
-    # ==================== GIAO DIỆN NHẬP TỌA ĐỘ VÀ TÍNH TOÁN ====================
+    # ==================== NHẬP LIỆU & TÍNH TOÁN ====================
     st.markdown("### 📍 Nhập hoặc Dán Tọa độ cần tra cứu")
     col_input1, col_input2 = st.columns([3, 1])
     with col_input1:
@@ -315,12 +304,12 @@ try:
                     lat2 = np.radians(df_clean[col_lat].values.astype(float))
                     lon2 = np.radians(df_clean[col_long].values.astype(float))
 
-                    # Công thức Haversine
+                    # Haversine formula
                     dlat = lat2 - lat1
                     dlon = lon2 - lon1
                     a = np.sin(dlat / 2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2)**2
                     c = 2 * np.arcsin(np.sqrt(a))
-                    r = 6371000  # Bán kính Trái Đất (m)
+                    r = 6371000
 
                     df_clean['Khoảng cách (m)'] = c * r
                     df_sorted = df_clean.sort_values(by='Khoảng cách (m)').copy()
@@ -355,6 +344,7 @@ try:
 
                     st.subheader("🎯 Kết quả 5 trạm gần nhất:")
 
+                    # Cấu trúc bảng HTML: Đã đưa "Tên Trạm" ra sau "Mã Trạm"
                     html_code = """
                     <style>
                         .table-container {
@@ -473,8 +463,8 @@ try:
                                     <th style="width: 40px; text-align: center;">STT</th>
                                     <th>Kết quả</th>
                                     <th>Khoảng cách (m)</th>
-                                    <th>Tên Trạm</th>
                                     <th>Mã Trạm</th>
+                                    <th>Tên Trạm</th>
                                     <th>Trạng Thái</th>
                                     <th>Loại Trạm</th>
                                     <th>Tỉnh</th>
@@ -501,8 +491,8 @@ try:
                                     <td style="text-align: center; color: #94a3b8; font-weight: bold;">{idx + 1}</td>
                                     <td style="text-align: center;">{badge_html}</td>
                                     <td><b>{row['Khoảng cách (m)']}</b></td>
-                                    <td>{row[col_ten_tram]}</td>
                                     <td>{row[col_ma_tram]}</td>
+                                    <td>{row[col_ten_tram]}</td>
                                     <td>{row[col_trang_thai]}</td>
                                     <td>{loai_tram_val}</td>
                                     <td>{row[col_tinh]}</td>
