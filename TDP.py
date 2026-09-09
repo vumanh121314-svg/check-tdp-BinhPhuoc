@@ -5,13 +5,14 @@ import pandas as pd
 import streamlit as st
 
 st.set_page_config(
-    page_title="Tra cứu tủ đổi pin V-Green",
+    page_title="Tra cứu trạm V-Green",
     page_icon="🔋",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
-# ==================== CÀI ĐẶT HÌNH NỀN TỦ V-GREEN ====================
-def set_vgreen_background():
+# ==================== TỐI ƯU GIAO DIỆN & HÌNH NỀN CHO MỌI THIẾT BỊ ====================
+def setup_ui_and_background():
     local_img_candidates = ["background_vgreen.jpg", "background_vgreen.png", "vgreen.jpg", "vgreen.png"]
     local_img_path = next((p for p in local_img_candidates if os.path.exists(p)), None)
 
@@ -26,37 +27,52 @@ def set_vgreen_background():
     st.markdown(
         f"""
         <style>
+        /* Tối ưu nền toàn màn hình, hỗ trợ mượt trên Safari iOS & Chrome Android */
         .stApp {{
             background: linear-gradient(rgba(10, 18, 26, 0.88), rgba(10, 18, 26, 0.90)), {bg_css};
             background-size: cover;
-            background-position: center;
+            background-position: center center;
             background-repeat: no-repeat;
             background-attachment: fixed;
         }}
+
         h1, h2, h3, p, span, label {{
             color: #f8fafc !important;
         }}
 
-        /* 1. TRIỆT TIÊU ICON CON MẮT TRONG Ô PASSWORD CỦA STREAMLIT */
+        /* Giảm lề trên điện thoại để tận dụng tối đa màn hình */
+        .block-container {{
+            padding-top: 1.5rem !important;
+            padding-bottom: 2rem !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }}
+
+        /* Triệt tiêu nút xem mật khẩu để bảo mật tuyệt đối */
         button[aria-label="Show password"], 
         button[aria-label="Hide password"],
         div[data-testid="stTextInput"] button {{
             display: none !important;
             visibility: hidden !important;
-            pointer-events: none !important;
         }}
 
-        /* 2. TRIỆT TIÊU NÚT REVEAL PASSWORD CỦA TRÌNH DUYỆT (EDGE / CHROME / SAFARI) */
         input[type="password"]::-ms-reveal,
         input[type="password"]::-ms-clear {{
             display: none !important;
+        }}
+
+        /* Nút bấm to hơn, dễ chạm bằng ngón tay trên điện thoại */
+        button[kind="primary"], button[kind="secondary"] {{
+            min-height: 44px !important;
+            font-size: 15px !important;
+            border-radius: 8px !important;
         }}
         </style>
         """,
         unsafe_allow_html=True
     )
 
-set_vgreen_background()
+setup_ui_and_background()
 
 # ==================== BẢO MẬT & ĐĂNG NHẬP ====================
 APP_PASSWORD = "123456"
@@ -66,32 +82,28 @@ if "authenticated" not in st.session_state:
 if "login_error" not in st.session_state:
     st.session_state.login_error = False
 
-# Xử lý khi chưa đăng nhập
 if not st.session_state.authenticated:
-    col_l, col_center, col_r = st.columns([1, 1.2, 1])
+    col_l, col_center, col_r = st.columns([1, 2, 1])
     with col_center:
-        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
         st.markdown(
             """
-            <div style="background: rgba(15, 23, 42, 0.88); padding: 26px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 8px 32px rgba(0,0,0,0.6); text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #00e599; margin-bottom: 8px;">🔒 XÁC THỰC TRUY CẬP</h2>
-                <p style="color: #cbd5e1; font-size: 14px; margin: 0;">Vui lòng nhập mật khẩu chính xác để vào hệ thống tra cứu</p>
+            <div style="background: rgba(15, 23, 42, 0.92); padding: 24px; border-radius: 12px; border: 1px solid #334155; text-align: center; margin-bottom: 16px;">
+                <h2 style="color: #00e599; font-size: 22px; margin-bottom: 8px;">🔒 XÁC THỰC TRUY CẬP</h2>
+                <p style="color: #94a3b8; font-size: 13px; margin: 0;">Nhập mật khẩu để mở ứng dụng tra cứu trạm V-Green</p>
             </div>
             """,
             unsafe_allow_html=True
         )
 
-        # Hiển thị thông báo nếu lần trước nhập sai
         if st.session_state.login_error:
-            st.error("❌ Mật khẩu không chính xác! Vui lòng nhập lại.")
+            st.error("❌ Mật khẩu không chính xác! Vui lòng thử lại.")
 
-        # Dùng st.form để khi bấm Đăng nhập hoặc Enter nếu sai sẽ tự làm mới (reset) ô nhập
         with st.form("login_form", clear_on_submit=True):
             entered_password = st.text_input(
-                "Mật khẩu truy cập:",
+                "Mật khẩu:",
                 type="password",
-                placeholder="Nhập mật khẩu...",
-                help="Mật khẩu được mã hóa ẩn tuyệt đối"
+                placeholder="Nhập mật khẩu..."
             )
             submit_btn = st.form_submit_button("🔓 Mở khóa", type="primary", use_container_width=True)
 
@@ -103,88 +115,80 @@ if not st.session_state.authenticated:
                 else:
                     st.session_state.authenticated = False
                     st.session_state.login_error = True
-                    st.rerun()  # Load lại trang, ô mật khẩu tự động bị xóa trắng bắt nhập lại
+                    st.rerun()
 
-    st.stop()  # Ngăn chặn toàn bộ code ứng dụng bên dưới thực thi nếu chưa nhập đúng mật khẩu
+    st.stop()
 
-# ==================== GIAO DIỆN CHÍNH (KHI ĐÃ ĐĂNG NHẬP ĐÚNG) ====================
-header_col1, header_col2 = st.columns([5, 1])
+# ==================== GIAO DIỆN CHÍNH ====================
+header_col1, header_col2 = st.columns([4, 1])
 with header_col1:
-    st.title("🔋 Tra cứu khoảng cách tủ đổi pin V-Green gần nhất")
+    st.markdown("<h2 style='margin: 0; color: #00e599;'>🔋 Tra cứu tủ đổi pin V-Green</h2>", unsafe_allow_html=True)
 with header_col2:
-    st.write("")
-    if st.button("🔒 Đăng xuất", type="secondary"):
+    if st.button("🔒 Đăng xuất", use_container_width=True):
         st.session_state.authenticated = False
         st.session_state.login_error = False
         st.rerun()
 
-# ==================== KHU VỰC BẢN ĐỒ & ĐỊNH VỊ GPS ====================
-st.markdown("### 🗺️ Bản đồ & Định vị vị trí đang đứng")
-st.caption("Bấm nút **'Lấy vị trí hiện tại của tôi (GPS)'** để thiết bị tự định vị tọa độ bạn đang đứng, hoặc click trực tiếp lên bản đồ.")
+# ==================== BẢN ĐỒ & ĐỊNH VỊ GPS ====================
+st.markdown("##### 🗺️ Bản đồ & Định vị vị trí")
 
 map_html = """
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        body { margin: 0; padding: 0; background: transparent; font-family: sans-serif; }
-        #map { height: 350px; width: 100%; border-radius: 8px; border: 1px solid #334155; }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 0; background: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        #map { height: 320px; width: 100%; border-radius: 8px; border: 1px solid #334155; }
         .control-panel {
             margin-top: 8px;
-            padding: 10px 14px;
+            padding: 10px 12px;
             background: #0f172a;
             color: #38bdf8;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 13px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 8px;
             border: 1px solid #1e293b;
         }
-        .btn-gps {
-            background: #2563eb;
-            color: white;
+        .btn-group { display: flex; gap: 6px; width: 100%; }
+        @media (min-width: 600px) {
+            .btn-group { width: auto; }
+        }
+        .btn-action {
+            flex: 1;
             border: none;
-            padding: 7px 14px;
+            padding: 9px 12px;
             border-radius: 6px;
             cursor: pointer;
             font-weight: bold;
             font-size: 13px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
+            text-align: center;
             transition: 0.2s;
         }
-        .btn-gps:hover { background: #1d4ed8; }
-        .btn-copy {
-            background: #059669;
-            color: white;
-            border: none;
-            padding: 7px 14px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 13px;
-            transition: 0.2s;
-        }
-        .btn-copy:hover { background: #047857; }
+        .btn-gps { background: #2563eb; color: white; }
+        .btn-gps:active { background: #1d4ed8; }
+        .btn-copy { background: #059669; color: white; }
+        .btn-copy:active { background: #047857; }
     </style>
 </head>
 <body>
     <div id="map"></div>
     <div class="control-panel">
-        <div>
-            <span>📍 Tọa độ xác định: <strong id="coord-text" style="color: #4ade80;">10.734728, 106.663666</strong></span>
-            <div id="status-msg" style="font-size: 12px; color: #94a3b8; margin-top: 3px;">(Chưa lấy GPS hoặc đang dùng vị trí mặc định)</div>
+        <div style="flex: 1; min-width: 200px;">
+            <div>📍 Vị trí: <strong id="coord-text" style="color: #4ade80;">10.734728, 106.663666</strong></div>
+            <div id="status-msg" style="font-size: 11px; color: #94a3b8; margin-top: 2px;">(Bấm nút xanh dưới để lấy GPS chính xác)</div>
         </div>
-        <div style="display: flex; gap: 8px;">
-            <button class="btn-gps" onclick="locateMe()">🎯 Lấy vị trí hiện tại của tôi (GPS)</button>
-            <button class="btn-copy" onclick="copyPickedCoord()">📋 Copy tọa độ</button>
+        <div class="btn-group">
+            <button class="btn-action btn-gps" onclick="locateMe()">🎯 Vị trí GPS của tôi</button>
+            <button class="btn-action btn-copy" onclick="copyPickedCoord()">📋 Copy</button>
         </div>
     </div>
 
@@ -192,7 +196,7 @@ map_html = """
         var initLat = 10.734728;
         var initLng = 106.663666;
 
-        var map = L.map('map').setView([initLat, initLng], 14);
+        var map = L.map('map', { tap: true }).setView([initLat, initLng], 14);
 
         L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
             maxZoom: 20,
@@ -203,76 +207,56 @@ map_html = """
         var accuracyCircle = null;
 
         function updateCoordUI(lat, lng, accuracyMeters) {
-            var latFormatted = lat.toFixed(6);
-            var lngFormatted = lng.toFixed(6);
-            var coordStr = latFormatted + ", " + lngFormatted;
+            var coordStr = lat.toFixed(6) + ", " + lng.toFixed(6);
             document.getElementById('coord-text').innerText = coordStr;
-
             var statusEl = document.getElementById('status-msg');
             if (accuracyMeters !== undefined) {
-                statusEl.innerText = "✅ Đã xác định GPS chính xác (sai số ~" + Math.round(accuracyMeters) + "m)";
+                statusEl.innerText = "✅ Đã lấy GPS (sai số ~" + Math.round(accuracyMeters) + "m)";
                 statusEl.style.color = "#4ade80";
             } else {
-                statusEl.innerText = "👉 Đã chọn điểm thủ công trên bản đồ";
+                statusEl.innerText = "👉 Đã chọn điểm trên bản đồ";
                 statusEl.style.color = "#38bdf8";
             }
         }
 
         function locateMe() {
             var statusEl = document.getElementById('status-msg');
-            statusEl.innerText = "⏳ Đang tìm tín hiệu GPS vệ tinh...";
+            statusEl.innerText = "⏳ Đang kết nối GPS...";
             statusEl.style.color = "#facc15";
 
             if (!navigator.geolocation) {
-                alert("Trình duyệt không hỗ trợ Geolocation/GPS.");
+                alert("Thiết bị không hỗ trợ Geolocation.");
                 return;
             }
 
             navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    var curLat = position.coords.latitude;
-                    var curLng = position.coords.longitude;
-                    var acc = position.coords.accuracy;
+                function(pos) {
+                    var curLat = pos.coords.latitude;
+                    var curLng = pos.coords.longitude;
+                    var acc = pos.coords.accuracy;
 
                     map.setView([curLat, curLng], 16);
                     marker.setLatLng([curLat, curLng]);
 
-                    if (accuracyCircle) {
-                        map.removeLayer(accuracyCircle);
-                    }
+                    if (accuracyCircle) { map.removeLayer(accuracyCircle); }
                     accuracyCircle = L.circle([curLat, curLng], {
                         radius: acc,
                         color: '#2563eb',
                         fillColor: '#3b82f6',
-                        fillOpacity: 0.18
+                        fillOpacity: 0.2
                     }).addTo(map);
 
                     updateCoordUI(curLat, curLng, acc);
-
                     var coordStr = curLat.toFixed(6) + ", " + curLng.toFixed(6);
                     navigator.clipboard.writeText(coordStr);
-                    alert("📍 Đã xác định vị trí:\\n" + coordStr + "\\n(Đã tự động Copy)");
+                    alert("📍 Đã lấy GPS:\\n" + coordStr + "\\n(Đã tự động Copy vào bộ nhớ tạm)");
                 },
-                function(error) {
-                    var msg = "Lỗi khi lấy vị trí: ";
-                    switch(error.code) {
-                        case error.PERMISSION_DENIED:
-                            msg += "Bạn đã từ chối cấp quyền vị trí. Vui lòng bật lại quyền vị trí trên trình duyệt.";
-                            break;
-                        case error.POSITION_UNAVAILABLE:
-                            msg += "Không có tín hiệu GPS.";
-                            break;
-                        case error.TIMEOUT:
-                            msg += "Quá thời gian phản hồi GPS.";
-                            break;
-                        default:
-                            msg += error.message;
-                    }
-                    statusEl.innerText = "❌ " + msg;
+                function(err) {
+                    statusEl.innerText = "❌ Không lấy được GPS (Hãy bật định vị)";
                     statusEl.style.color = "#f87171";
-                    alert(msg);
+                    alert("Vui lòng cấp quyền Vị trí (GPS) trên trình duyệt thiết bị của bạn.");
                 },
-                { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
         }
 
@@ -291,7 +275,7 @@ map_html = """
         function copyPickedCoord() {
             var coordStr = document.getElementById('coord-text').innerText;
             navigator.clipboard.writeText(coordStr).then(function() {
-                alert("Đã copy tọa độ: " + coordStr);
+                alert("Đã copy: " + coordStr);
             });
         }
     </script>
@@ -299,7 +283,7 @@ map_html = """
 </html>
 """
 
-st.components.v1.html(map_html, height=430, scrolling=False)
+st.components.v1.html(map_html, height=410, scrolling=False)
 
 # ==================== ĐỌC DỮ LIỆU EXCEL ====================
 @st.cache_data
@@ -341,43 +325,37 @@ try:
     df_clean['Loại Trạm Temp'] = df_clean.apply(extract_loai_tram, axis=1)
 
     # ==================== NHẬP LIỆU & TÍNH TOÁN ====================
-    st.markdown("### 📍 Nhập hoặc Dán Tọa độ cần tra cứu")
+    st.markdown("##### 📍 Nhập tọa độ & Ngưỡng kiểm tra")
     col_input1, col_input2 = st.columns([3, 1])
     with col_input1:
         raw_coord = st.text_input(
-            "Tọa độ LATITUDE, LONGITUDE:",
+            "Tọa độ (Lat, Long):",
             value="10.734728, 106.663666",
             placeholder="Ví dụ: 10.734728, 106.663666"
         )
     with col_input2:
         threshold_m = st.number_input(
-            "Ngưỡng đạt khoảng cách (m):",
+            "Ngưỡng Đạt (m):",
             min_value=1.0,
             value=500.0,
-            step=50.0,
-            help="Khoảng cách <= giá trị này sẽ tính là ĐẠT"
+            step=50.0
         )
 
-    if st.button("🚀 Tính khoảng cách", type="primary"):
+    if st.button("🚀 Tính khoảng cách", type="primary", use_container_width=True):
         clean_input = raw_coord.strip().replace('\t', ',')
-
-        if ',' in clean_input:
-            parts = [p.strip() for p in clean_input.split(',')]
-        else:
-            parts = clean_input.split()
+        parts = [p.strip() for p in clean_input.split(',')] if ',' in clean_input else clean_input.split()
 
         if len(parts) >= 2:
             try:
                 input_lat = float(parts[0])
                 input_lng = float(parts[1])
 
-                with st.spinner('Đang tính toán khoảng cách...'):
+                with st.spinner('Đang tính khoảng cách...'):
                     lat1 = np.radians(input_lat)
                     lon1 = np.radians(input_lng)
                     lat2 = np.radians(df_clean[col_lat].values.astype(float))
                     lon2 = np.radians(df_clean[col_long].values.astype(float))
 
-                    # Haversine
                     dlat = lat2 - lat1
                     dlon = lon2 - lon1
                     a = np.sin(dlat / 2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2)**2
@@ -415,30 +393,23 @@ try:
                         lambda d: "Đạt" if d <= threshold_m else "Không đạt"
                     )
 
-                    st.subheader("🎯 Kết quả 5 trạm gần nhất:")
+                    st.markdown("### 🎯 Kết quả 5 trạm gần nhất")
 
-                    # Cột Tên Trạm nằm ngay sau Mã Trạm
+                    # GIAO DIỆN KÉP (BẢNG TRÊN MÁY TÍNH & CARDS TRÊN ĐIỆN THOẠI)
                     html_code = """
                     <style>
-                        .table-container {
-                            width: 100%;
-                            overflow-x: auto;
-                            margin: 10px 0;
-                            border-radius: 8px;
-                            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-                        }
+                        * { box-sizing: border-box; }
                         .custom-table {
                             width: 100%;
                             border-collapse: collapse;
-                            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                            font-size: 14px;
+                            font-size: 13px;
                             color: #f1f5f9;
                         }
                         .custom-table th {
                             background-color: rgba(22, 33, 49, 0.95);
                             color: #00e599;
                             text-align: left;
-                            padding: 12px 14px;
+                            padding: 10px 12px;
                             border: 1px solid rgba(71, 85, 105, 0.6);
                             white-space: nowrap;
                         }
@@ -446,109 +417,68 @@ try:
                             padding: 10px 12px;
                             border: 1px solid rgba(71, 85, 105, 0.4);
                             background-color: rgba(13, 22, 33, 0.85);
-                            vertical-align: middle;
                         }
-                        .custom-table tr:hover td {
-                            background-color: rgba(22, 33, 49, 0.9);
-                        }
-                        .copy-btn {
-                            background-color: #059669;
-                            color: white;
+                        .btn-s {
                             border: none;
-                            padding: 6px 10px;
+                            padding: 5px 8px;
                             border-radius: 4px;
-                            cursor: pointer;
-                            font-weight: 600;
                             font-size: 12px;
-                            white-space: nowrap;
-                        }
-                        .map-link-btn {
-                            background-color: #0284c7;
-                            color: white !important;
+                            font-weight: 600;
                             text-decoration: none;
-                            padding: 6px 10px;
-                            border-radius: 4px;
-                            font-weight: 600;
-                            font-size: 12px;
-                            display: inline-block;
-                            white-space: nowrap;
-                        }
-                        .map-link-btn:hover { background-color: #0369a1; }
-                        .badge-pass {
-                            background-color: #10b981;
-                            color: white;
-                            padding: 4px 8px;
-                            border-radius: 4px;
-                            font-weight: bold;
-                            font-size: 12px;
+                            cursor: pointer;
                             display: inline-block;
                         }
-                        .badge-fail {
-                            background-color: #ef4444;
-                            color: white;
-                            padding: 4px 8px;
-                            border-radius: 4px;
-                            font-weight: bold;
-                            font-size: 12px;
-                            display: inline-block;
+                        .btn-copy-s { background: #059669; color: white; }
+                        .btn-map-s { background: #0284c7; color: white !important; margin-left: 4px; }
+                        .badge-pass { background: #10b981; color: white; padding: 3px 6px; border-radius: 4px; font-weight: bold; font-size: 11px; }
+                        .badge-fail { background: #ef4444; color: white; padding: 3px 6px; border-radius: 4px; font-weight: bold; font-size: 11px; }
+
+                        /* Responsive: Hiển thị dạng Card trên màn hình hẹp (Điện thoại) */
+                        .mobile-card {
+                            display: none;
+                            background: rgba(15, 23, 42, 0.9);
+                            border: 1px solid #334155;
+                            border-radius: 8px;
+                            padding: 12px;
+                            margin-bottom: 10px;
+                        }
+                        @media (max-width: 768px) {
+                            .table-container { display: none; }
+                            .mobile-card { display: block; }
                         }
                     </style>
 
                     <script>
-                    function fallbackCopy(text, btn) {
-                        var textArea = document.createElement("textarea");
-                        textArea.value = text;
-                        document.body.appendChild(textArea);
-                        textArea.focus();
-                        textArea.select();
-                        document.execCommand('copy');
-                        document.body.removeChild(textArea);
-                        showCopied(btn);
-                    }
-
-                    function showCopied(btn) {
-                        var originalText = btn.innerHTML;
-                        btn.innerHTML = "✅ Đã Copy!";
-                        btn.style.backgroundColor = "#10b981";
-                        setTimeout(function() {
-                            btn.innerHTML = originalText;
-                            btn.style.backgroundColor = "#059669";
-                        }, 1500);
-                    }
-
-                    function copyToClipboard(text, btn) {
-                        if (navigator.clipboard && window.isSecureContext) {
-                            navigator.clipboard.writeText(text).then(function() {
-                                showCopied(btn);
-                            }).catch(function() {
-                                fallbackCopy(text, btn);
-                            });
-                        } else {
-                            fallbackCopy(text, btn);
-                        }
+                    function copyText(str, btn) {
+                        navigator.clipboard.writeText(str).then(function() {
+                            var old = btn.innerText;
+                            btn.innerText = "✅";
+                            setTimeout(function() { btn.innerText = old; }, 1200);
+                        });
                     }
                     </script>
 
-                    <div class="table-container">
+                    <div class="table-container" style="overflow-x: auto; border-radius: 8px;">
                         <table class="custom-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 40px; text-align: center;">STT</th>
+                                    <th>STT</th>
                                     <th>Kết quả</th>
-                                    <th>Khoảng cách (m)</th>
+                                    <th>Khoảng cách</th>
                                     <th>Mã Trạm</th>
                                     <th>Tên Trạm</th>
                                     <th>Trạng Thái</th>
                                     <th>Loại Trạm</th>
                                     <th>Tỉnh</th>
                                     <th>Miền</th>
-                                    <th>Lat</th>
-                                    <th>Long</th>
-                                    <th style="text-align: center;">Thao tác</th>
+                                    <th>Tọa độ</th>
+                                    <th>Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody>
                     """
+
+                    cards_html = "<div>"
 
                     for idx, (_, row) in enumerate(top5.iterrows()):
                         lat_val = str(row[col_lat])
@@ -557,42 +487,61 @@ try:
                         loai_tram_val = str(row['Loại Trạm Temp']) if row['Loại Trạm Temp'] != "" else "-"
                         gmaps_link = f"https://www.google.com/maps?q={lat_val},{long_val}"
 
-                        badge_html = '<span class="badge-pass">✔ Đạt</span>' if row['Kết quả'] == "Đạt" else '<span class="badge-fail">✖ Không đạt</span>'
+                        is_pass = row['Kết quả'] == "Đạt"
+                        badge = '<span class="badge-pass">✔ Đạt</span>' if is_pass else '<span class="badge-fail">✖ Không đạt</span>'
 
+                        # 1. Hàng cho Máy tính / Tablet
                         html_code += f"""
-                                <tr>
-                                    <td style="text-align: center; color: #94a3b8; font-weight: bold;">{idx + 1}</td>
-                                    <td style="text-align: center;">{badge_html}</td>
-                                    <td><b>{row['Khoảng cách (m)']}</b></td>
-                                    <td>{row[col_ma_tram]}</td>
-                                    <td>{row[col_ten_tram]}</td>
-                                    <td>{row[col_trang_thai]}</td>
-                                    <td>{loai_tram_val}</td>
-                                    <td>{row[col_tinh]}</td>
-                                    <td>{row[col_mien_dia_ly]}</td>
-                                    <td>{lat_val}</td>
-                                    <td>{long_val}</td>
-                                    <td style="text-align: center; white-space: nowrap;">
-                                        <button class="copy-btn" onclick="copyToClipboard('{coord_str}', this)">📋 Copy</button>
-                                        <a class="map-link-btn" href="{gmaps_link}" target="_blank">🗺️ Mở Maps</a>
-                                    </td>
-                                </tr>
+                            <tr>
+                                <td style="text-align: center; color: #94a3b8; font-weight: bold;">{idx + 1}</td>
+                                <td>{badge}</td>
+                                <td><b>{row['Khoảng cách (m)']} m</b></td>
+                                <td>{row[col_ma_tram]}</td>
+                                <td>{row[col_ten_tram]}</td>
+                                <td>{row[col_trang_thai]}</td>
+                                <td>{loai_tram_val}</td>
+                                <td>{row[col_tinh]}</td>
+                                <td>{row[col_mien_dia_ly]}</td>
+                                <td>{coord_str}</td>
+                                <td style="white-space: nowrap;">
+                                    <button class="btn-s btn-copy-s" onclick="copyText('{coord_str}', this)">📋 Copy</button>
+                                    <a class="btn-s btn-map-s" href="{gmaps_link}" target="_blank">🗺️ Maps</a>
+                                </td>
+                            </tr>
                         """
 
-                    html_code += """
-                            </tbody>
-                        </table>
-                    </div>
-                    """
+                        # 2. Card cho Điện thoại
+                        cards_html += f"""
+                        <div class="mobile-card">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <strong style="color: #38bdf8; font-size: 15px;">#{idx + 1}. {row[col_ten_tram]}</strong>
+                                {badge}
+                            </div>
+                            <div style="font-size: 13px; line-height: 1.6; color: #cbd5e1;">
+                                <div>📏 Khoảng cách: <b style="color: #facc15;">{row['Khoảng cách (m)']} m</b></div>
+                                <div>🏷️ Mã trạm: <b>{row[col_ma_tram]}</b> | Loại: {loai_tram_val}</div>
+                                <div>📍 Tỉnh/Miền: {row[col_tinh]} ({row[col_mien_dia_ly]})</div>
+                                <div style="font-size: 12px; color: #94a3b8;">🌐 Tọa độ: {coord_str}</div>
+                            </div>
+                            <div style="margin-top: 8px; display: flex; gap: 8px;">
+                                <button class="btn-s btn-copy-s" style="flex: 1; padding: 7px;" onclick="copyText('{coord_str}', this)">📋 Copy tọa độ</button>
+                                <a class="btn-s btn-map-s" style="flex: 1; padding: 7px; text-align: center;" href="{gmaps_link}" target="_blank">🗺️ Mở Maps</a>
+                            </div>
+                        </div>
+                        """
 
-                    st.components.v1.html(html_code, height=450, scrolling=True)
+                    html_code += "</tbody></table></div>"
+                    cards_html += "</div>"
+
+                    full_rendered_html = html_code + cards_html
+                    st.components.v1.html(full_rendered_html, height=520, scrolling=True)
 
             except ValueError:
-                st.error("Tọa độ nhập vào không hợp lệ. Vui lòng kiểm tra lại số liệu.")
+                st.error("Tọa độ nhập vào không hợp lệ.")
         else:
-            st.warning("Vui lòng nhập đầy đủ cả Vĩ độ và Kinh độ.")
+            st.warning("Vui lòng nhập đầy đủ Vĩ độ và Kinh độ.")
 
 except FileNotFoundError:
-    st.error("⚠️ Không tìm thấy file 'DATA Trạm.xlsx'. Hãy đảm bảo file này nằm cùng thư mục.")
+    st.error("⚠️ Không tìm thấy file 'DATA Trạm.xlsx' trong cùng thư mục.")
 except Exception as e:
     st.error(f"Đã xảy ra lỗi: {e}")
