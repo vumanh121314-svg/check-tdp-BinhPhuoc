@@ -1,2 +1,2 @@
 # check-tdp
-Kiểm tra TĐP CỦA SÊP
+Kiểm tra TĐP CỦA SẾP
