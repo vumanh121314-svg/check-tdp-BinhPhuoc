@@ -1,73 +1,54 @@
 import base64
+import os
 import numpy as np
 import pandas as pd
 import streamlit as st
 
 st.set_page_config(
     page_title="Tra cứu trạm gần nhất",
-    page_icon="📍",
+    page_icon="🔋",
     layout="wide"
 )
 
-# ==================== HÀM CÀI ĐẶT BACKGROUND ====================
-def set_background(image_url_or_base64=None, is_url=True):
-    """
-    Hàm phủ hình nền toàn trang có lớp gradient tối (Dark Overlay)
-    giúp nền tối om, làm nổi bật chữ và bảng dữ liệu.
-    """
-    if is_url:
-        bg_css = f'url("{image_url_or_base64}")'
+# ==================== CÀI ĐẶT HÌNH NỀN TỦ V-GREEN CỐ ĐỊNH ====================
+def set_vgreen_background():
+    # Đường dẫn file ảnh tủ V-Green trong máy (nếu bạn có tải ảnh về cùng thư mục)
+    local_img_candidates = ["background_vgreen.jpg", "background_vgreen.png", "vgreen.jpg", "vgreen.png"]
+    local_img_path = next((p for p in local_img_candidates if os.path.exists(p)), None)
+
+    if local_img_path:
+        with open(local_img_path, "rb") as img_file:
+            encoded_img = base64.b64encode(img_file.read()).decode()
+            bg_css = f'url("data:image/png;base64,{encoded_img}")'
     else:
-        bg_css = f'url("data:image/png;base64,{image_url_or_base64}")'
+        # URL ảnh nền trạm sạc xe điện / hạ tầng V-Green dự phòng khi chưa có file cục bộ
+        online_url = "https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&w=1920&q=80"
+        bg_css = f'url("{online_url}")'
 
     st.markdown(
         f"""
         <style>
         .stApp {{
-            background: linear-gradient(rgba(10, 14, 23, 0.88), rgba(10, 14, 23, 0.92)), {bg_css};
+            background: linear-gradient(rgba(10, 18, 26, 0.85), rgba(10, 18, 26, 0.88)), {bg_css};
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
             background-attachment: fixed;
         }}
-        /* Làm cho các khung chữ/tiêu đề hiển thị rõ ràng trên nền */
+        /* Chỉnh màu chữ toàn trang để tương phản tốt trên nền tối */
         h1, h2, h3, p, span, label {{
-            color: #f1f5f9 !important;
+            color: #f8fafc !important;
         }}
         </style>
         """,
         unsafe_allow_html=True
     )
 
-# Sidebar: Cho phép chọn hình nền mặc định hoặc tải ảnh từ máy
-with st.sidebar:
-    st.header("⚙️ Cài đặt giao diện")
-    bg_option = st.radio(
-        "Chọn nguồn hình nền:",
-        ["Nền công nghệ tối mặc định", "Tải ảnh từ máy", "Dán Link ảnh (URL)"]
-    )
-
-    if bg_option == "Nền công nghệ tối mặc định":
-        # Ảnh trạm phát sóng / viễn thông phong cách Dark mode
-        default_url = "https://images.unsplash.com/photo-1516849841032-87cbac4d88f7?auto=format&fit=crop&w=1920&q=80"
-        set_background(default_url, is_url=True)
-
-    elif bg_option == "Tải ảnh từ máy":
-        uploaded_bg = st.file_uploader("Tải lên ảnh nền (PNG, JPG):", type=["png", "jpg", "jpeg"])
-        if uploaded_bg is not None:
-            encoded_img = base64.b64encode(uploaded_bg.read()).decode()
-            set_background(encoded_img, is_url=False)
-        else:
-            # Nếu chưa tải thì dùng nền tối mặc định
-            default_url = "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1920&q=80"
-            set_background(default_url, is_url=True)
-
-    else:
-        custom_url = st.text_input("Dán link ảnh URL:", value="https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1920&q=80")
-        set_background(custom_url, is_url=True)
+# Gọi hàm thiết lập nền
+set_vgreen_background()
 
 # ==================== NỘI DUNG CHÍNH ====================
-st.title("📍 Tra cứu khoảng cách trạm gần nhất")
+st.title("🔋 Tra cứu khoảng cách tủ đổi pin V-Green gần nhất")
 
 # 1. Tải dữ liệu Data nền từ file Excel
 @st.cache_data
@@ -161,7 +142,7 @@ try:
 
                     df_clean['Khoảng cách (m)'] = c * r
 
-                    # Sắp xếp theo khoảng cách
+                    # Sắp xếp theo khoảng cách tăng dần
                     df_sorted = df_clean.sort_values(by='Khoảng cách (m)').copy()
 
                     # Gom nhóm dữ liệu trùng
@@ -197,7 +178,7 @@ try:
 
                     st.subheader("🎯 Kết quả 5 trạm gần nhất:")
 
-                    # HTML & CSS Table trong suốt đồng bộ nền
+                    # Hiển thị bảng HTML
                     html_code = """
                     <style>
                         .table-container {
@@ -215,8 +196,8 @@ try:
                             color: #f1f5f9;
                         }
                         .custom-table th {
-                            background-color: rgba(30, 41, 59, 0.95);
-                            color: #38bdf8;
+                            background-color: rgba(22, 33, 49, 0.95);
+                            color: #00e599;
                             text-align: left;
                             padding: 12px 14px;
                             border: 1px solid rgba(71, 85, 105, 0.6);
@@ -225,14 +206,14 @@ try:
                         .custom-table td {
                             padding: 10px 12px;
                             border: 1px solid rgba(71, 85, 105, 0.4);
-                            background-color: rgba(15, 23, 42, 0.85);
+                            background-color: rgba(13, 22, 33, 0.85);
                             vertical-align: middle;
                         }
                         .custom-table tr:hover td {
-                            background-color: rgba(30, 41, 59, 0.9);
+                            background-color: rgba(22, 33, 49, 0.9);
                         }
                         .copy-btn {
-                            background-color: #0284c7;
+                            background-color: #059669;
                             color: white;
                             border: none;
                             padding: 6px 12px;
@@ -244,10 +225,10 @@ try:
                             transition: 0.2s;
                         }
                         .copy-btn:hover {
-                            background-color: #0369a1;
+                            background-color: #047857;
                         }
                         .badge-pass {
-                            background-color: #16a34a;
+                            background-color: #10b981;
                             color: white;
                             padding: 4px 8px;
                             border-radius: 4px;
@@ -256,7 +237,7 @@ try:
                             display: inline-block;
                         }
                         .badge-fail {
-                            background-color: #dc2626;
+                            background-color: #ef4444;
                             color: white;
                             padding: 4px 8px;
                             border-radius: 4px;
@@ -285,10 +266,10 @@ try:
                     function showCopied(btn) {
                         var originalText = btn.innerHTML;
                         btn.innerHTML = "✅ Đã Copy!";
-                        btn.style.backgroundColor = "#16a34a";
+                        btn.style.backgroundColor = "#10b981";
                         setTimeout(function() {
                             btn.innerHTML = originalText;
-                            btn.style.backgroundColor = "#0284c7";
+                            btn.style.backgroundColor = "#059669";
                         }, 1500);
                     }
 
