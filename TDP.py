@@ -43,7 +43,54 @@ def set_vgreen_background():
 
 set_vgreen_background()
 
-st.title("🔋 Tra cứu khoảng cách tủ đổi pin V-Green gần nhất")
+# ==================== KHÓA BẢO MẬT BẰNG MẬT KHẨU ====================
+APP_PASSWORD = "123456"
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+def check_password():
+    if st.session_state.get("password_input") == APP_PASSWORD:
+        st.session_state.authenticated = True
+        del st.session_state["password_input"]  # Xóa mật khẩu khỏi session để an toàn
+    else:
+        st.error("❌ Mật khẩu không chính xác. Vui lòng nhập lại!")
+
+# Giao diện Đăng nhập nếu chưa xác thực
+if not st.session_state.authenticated:
+    col_l, col_center, col_r = st.columns([1, 1.2, 1])
+    with col_center:
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown(
+            """
+            <div style="background: rgba(15, 23, 42, 0.85); padding: 30px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 8px 32px rgba(0,0,0,0.5); text-align: center;">
+                <h2 style="color: #00e599; margin-bottom: 10px;">🔒 XÁC THỰC TRUY CẬP</h2>
+                <p style="color: #cbd5e1; font-size: 14px;">Vui lòng nhập mật khẩu để mở ứng dụng tra cứu trạm V-Green</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        st.text_input(
+            "Mật khẩu truy cập:",
+            type="password",
+            key="password_input",
+            placeholder="Nhập 123456...",
+            on_change=check_password
+        )
+        if st.button("🔓 Mở khóa", type="primary", use_container_width=True):
+            check_password()
+
+    st.stop()  # Dừng toàn bộ code bên dưới nếu chưa nhập đúng mật khẩu
+
+# ==================== GIAO DIỆN CHÍNH (ĐÃ ĐĂNG NHẬP THÀNH CÔNG) ====================
+header_col1, header_col2 = st.columns([5, 1])
+with header_col1:
+    st.title("🔋 Tra cứu khoảng cách tủ đổi pin V-Green gần nhất")
+with header_col2:
+    st.write("")
+    if st.button("🔒 Đăng xuất", type="secondary"):
+        st.session_state.authenticated = False
+        st.rerun()
 
 # ==================== KHU VỰC BẢN ĐỒ & ĐỊNH VỊ GPS ====================
 st.markdown("### 🗺️ Bản đồ & Định vị vị trí đang đứng")
@@ -304,7 +351,7 @@ try:
                     lat2 = np.radians(df_clean[col_lat].values.astype(float))
                     lon2 = np.radians(df_clean[col_long].values.astype(float))
 
-                    # Haversine formula
+                    # Haversine
                     dlat = lat2 - lat1
                     dlon = lon2 - lon1
                     a = np.sin(dlat / 2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2)**2
@@ -344,7 +391,7 @@ try:
 
                     st.subheader("🎯 Kết quả 5 trạm gần nhất:")
 
-                    # Cấu trúc bảng HTML: Đã đưa "Tên Trạm" ra sau "Mã Trạm"
+                    # Cột Tên Trạm nằm ngay sau Mã Trạm
                     html_code = """
                     <style>
                         .table-container {
