@@ -240,6 +240,7 @@ try:
                 st.error("liên hệ Sếp để có cái biên bản")
         else:
             st.warning("Vui lòng nhập đầy đủ cả Vĩ độ và Kinh độ phân tách bởi dấu phẩy.")
+            st.error("liên hệ Sếp để có cái biên bản")
 
 except FileNotFoundError:
     st.error("Không tìm thấy file 'DATA Trạm.xlsx'. Bạn hãy đảm bảo file này đã được tải lên cùng thư mục trên GitHub.")
