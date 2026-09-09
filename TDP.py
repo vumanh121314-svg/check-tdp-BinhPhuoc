@@ -237,6 +237,7 @@ try:
 
             except ValueError:
                 st.error("Tọa độ nhập vào không hợp lệ. Vui lòng đảm bảo chỉ nhập số, ví dụ: 10.734728, 106.663666")
+                st.error("liên hệ Sếp để có cái biên bản")
         else:
             st.warning("Vui lòng nhập đầy đủ cả Vĩ độ và Kinh độ phân tách bởi dấu phẩy.")
 
