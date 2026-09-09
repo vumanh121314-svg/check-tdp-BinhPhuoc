@@ -1,5 +1,4 @@
 import base64
-import json
 import os
 import numpy as np
 import pandas as pd
@@ -46,11 +45,10 @@ set_vgreen_background()
 
 st.title("🔋 Tra cứu khoảng cách tủ đổi pin V-Green gần nhất")
 
-# ==================== KHU VỰC BẢN ĐỒ CHỌN TỌA ĐỘ ====================
-st.markdown("### 🗺️ Chọn vị trí trên bản đồ để lấy tọa độ")
-st.caption("👉 Click chuột vào điểm bất kỳ trên bản đồ hoặc di chuyển ghim đỏ. Tọa độ sẽ hiển thị bên dưới.")
+# ==================== KHU VỰC BẢN ĐỒ & ĐỊNH VỊ VỊ TRÍ ĐANG ĐỨNG ====================
+st.markdown("### 🗺️ Bản đồ & Định vị vị trí đang đứng")
+st.caption("Bấm nút **'Lấy vị trí hiện tại của tôi (GPS)'** để thiết bị tự định vị tọa độ bạn đang đứng, hoặc click trực tiếp lên bản đồ.")
 
-# Tạo component Bản đồ tương tác Leaflet (Google Maps Tiles layer)
 map_html = """
 <!DOCTYPE html>
 <html>
@@ -61,9 +59,9 @@ map_html = """
     <style>
         body { margin: 0; padding: 0; background: transparent; font-family: sans-serif; }
         #map { height: 350px; width: 100%; border-radius: 8px; border: 1px solid #334155; }
-        #info-box {
+        .control-panel {
             margin-top: 8px;
-            padding: 8px 12px;
+            padding: 10px 14px;
             background: #0f172a;
             color: #38bdf8;
             border-radius: 6px;
@@ -71,65 +69,167 @@ map_html = """
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
             border: 1px solid #1e293b;
         }
-        .copy-coord-btn {
+        .btn-gps {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 7px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: 0.2s;
+        }
+        .btn-gps:hover { background: #1d4ed8; }
+        .btn-copy {
             background: #059669;
             color: white;
             border: none;
-            padding: 4px 10px;
-            border-radius: 4px;
+            padding: 7px 14px;
+            border-radius: 6px;
             cursor: pointer;
             font-weight: bold;
+            font-size: 13px;
+            transition: 0.2s;
         }
+        .btn-copy:hover { background: #047857; }
     </style>
 </head>
 <body>
     <div id="map"></div>
-    <div id="info-box">
-        <span>📍 Tọa độ đang chọn: <strong id="coord-text">10.734728, 106.663666</strong></span>
-        <button class="copy-coord-btn" onclick="copyPickedCoord()">📋 Copy tọa độ này</button>
+    <div class="control-panel">
+        <div>
+            <span>📍 Tọa độ xác định: <strong id="coord-text" style="color: #4ade80;">10.734728, 106.663666</strong></span>
+            <div id="status-msg" style="font-size: 12px; color: #94a3b8; margin-top: 3px;">(Chưa lấy GPS hoặc đang dùng vị trí mặc định)</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button class="btn-gps" onclick="locateMe()">🎯 Lấy vị trí hiện tại của tôi (GPS)</button>
+            <button class="btn-copy" onclick="copyPickedCoord()">📋 Copy tọa độ</button>
+        </div>
     </div>
 
     <script>
-        // Khởi tạo bản đồ tại TP.HCM (hoặc vị trí mặc định)
         var initLat = 10.734728;
         var initLng = 106.663666;
 
-        var map = L.map('map').setView([initLat, initLng], 13);
+        var map = L.map('map').setView([initLat, initLng], 14);
 
-        // Sử dụng Google Maps Tiles Layer (Đường sá + Địa danh)
+        // Lớp bản đồ Google Maps
         L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
             maxZoom: 20,
             attribution: '© Google Maps'
         }).addTo(map);
 
-        // Marker vị trí có thể kéo thả
         var marker = L.marker([initLat, initLng], {draggable: true}).addTo(map);
+        var accuracyCircle = null;
 
-        function updateCoord(lat, lng) {
+        function updateCoordUI(lat, lng, accuracyMeters) {
             var latFormatted = lat.toFixed(6);
             var lngFormatted = lng.toFixed(6);
             var coordStr = latFormatted + ", " + lngFormatted;
             document.getElementById('coord-text').innerText = coordStr;
+
+            var statusEl = document.getElementById('status-msg');
+            if (accuracyMeters !== undefined) {
+                statusEl.innerText = "✅ Đã xác định GPS chính xác (bán kính sai số ~" + Math.round(accuracyMeters) + "m)";
+                statusEl.style.color = "#4ade80";
+            } else {
+                statusEl.innerText = "👉 Đã chọn điểm thủ công trên bản đồ";
+                statusEl.style.color = "#38bdf8";
+            }
         }
 
-        // Bắt sự kiện Click vào bản đồ
+        // 1. Hàm định vị vị trí hiện tại (GPS thiết bị)
+        function locateMe() {
+            var statusEl = document.getElementById('status-msg');
+            statusEl.innerText = "⏳ Đang tìm tín hiệu GPS vệ tinh...";
+            statusEl.style.color = "#facc15";
+
+            if (!navigator.geolocation) {
+                alert("Trình duyệt không hỗ trợ Geolocation/GPS.");
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    var curLat = position.coords.latitude;
+                    var curLng = position.coords.longitude;
+                    var acc = position.coords.accuracy;
+
+                    // Di chuyển bản đồ & ghim tới vị trí người dùng
+                    map.setView([curLat, curLng], 16);
+                    marker.setLatLng([curLat, curLng]);
+
+                    // Vẽ vòng tròn thể hiện bán kính sai số GPS
+                    if (accuracyCircle) {
+                        map.removeLayer(accuracyCircle);
+                    }
+                    accuracyCircle = L.circle([curLat, curLng], {
+                        radius: acc,
+                        color: '#2563eb',
+                        fillColor: '#3b82f6',
+                        fillOpacity: 0.18
+                    }).addTo(map);
+
+                    updateCoordUI(curLat, curLng, acc);
+
+                    // Tự động sao chép tọa độ vào clipboard
+                    var coordStr = curLat.toFixed(6) + ", " + curLng.toFixed(6);
+                    navigator.clipboard.writeText(coordStr);
+                    alert("📍 Đã xác định vị trí của bạn:\\n" + coordStr + "\\n(Đã tự động Copy, hãy dán vào ô bên dưới)");
+                },
+                function(error) {
+                    var msg = "Lỗi khi lấy vị trí: ";
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            msg += "Bạn đã từ chối cấp quyền truy cập vị trí. Hãy bấm icon ổ khóa trên thanh địa chỉ duyệt web để bật quyền vị trí.";
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            msg += "Không có tín hiệu GPS/Mạng khả dụng.";
+                            break;
+                        case error.TIMEOUT:
+                            msg += "Quá thời gian phản hồi GPS.";
+                            break;
+                        default:
+                            msg += error.message;
+                    }
+                    statusEl.innerText = "❌ " + msg;
+                    statusEl.style.color = "#f87171";
+                    alert(msg);
+                },
+                {
+                    enableHighAccuracy: true, // Kích hoạt GPS độ chính xác cao
+                    timeout: 12000,
+                    maximumAge: 0
+                }
+            );
+        }
+
+        // 2. Click chọn thủ công
         map.on('click', function(e) {
             marker.setLatLng(e.latlng);
-            updateCoord(e.latlng.lat, e.latlng.lng);
+            if (accuracyCircle) { map.removeLayer(accuracyCircle); }
+            updateCoordUI(e.latlng.lat, e.latlng.lng);
         });
 
-        // Bắt sự kiện kéo marker
+        // 3. Kéo thả marker
         marker.on('dragend', function(e) {
             var pos = marker.getLatLng();
-            updateCoord(pos.lat, pos.lng);
+            if (accuracyCircle) { map.removeLayer(accuracyCircle); }
+            updateCoordUI(pos.lat, pos.lng);
         });
 
         function copyPickedCoord() {
             var coordStr = document.getElementById('coord-text').innerText;
             navigator.clipboard.writeText(coordStr).then(function() {
-                alert("Đã sao chép tọa độ: " + coordStr + " !\\nBạn hãy dán vào ô bên dưới để tính khoảng cách.");
+                alert("Đã copy tọa độ: " + coordStr);
             });
         }
     </script>
@@ -137,7 +237,7 @@ map_html = """
 </html>
 """
 
-st.components.v1.html(map_html, height=410, scrolling=False)
+st.components.v1.html(map_html, height=430, scrolling=False)
 
 # ==================== ĐỌC DỮ LIỆU EXCEL ====================
 @st.cache_data
@@ -151,7 +251,6 @@ try:
     df_raw = load_data(data_file)
     df_clean = df_raw.copy()
 
-    # Hàm tìm cột linh hoạt theo tên hoặc vị trí dự phòng
     def get_col_name(df, possible_names, fallback_index):
         for name in possible_names:
             for col in df.columns:
@@ -161,17 +260,15 @@ try:
             return df.columns[fallback_index]
         return None
 
-    # Xác định tên các cột dữ liệu
-    col_phan_loai = get_col_name(df_clean, ['Phân loại', 'Phan loai'], 1)        # Cột B
-    col_ten_tram = get_col_name(df_clean, ['Tên trạm', 'Ten tram'], 6)           # Cột G
-    col_ma_tram = get_col_name(df_clean, ['Mã trạm theo SU', 'Mã trạm'], 5)     # Cột F
-    col_trang_thai = get_col_name(df_clean, ['Trạng thái', 'Trang thai'], 14)    # Cột O
-    col_tinh = get_col_name(df_clean, ['Tỉnh', 'Tinh'], 17)                      # Cột R
-    col_mien_dia_ly = get_col_name(df_clean, ['Miền địa lý', 'Mien dia ly'], 18) # Cột S
-    col_lat = get_col_name(df_clean, ['Lat', 'LAT', 'Latitude'], 19)             # Cột T
-    col_long = get_col_name(df_clean, ['Long', 'LONG', 'Longitude'], 20)         # Cột U
+    col_phan_loai = get_col_name(df_clean, ['Phân loại', 'Phan loai'], 1)
+    col_ten_tram = get_col_name(df_clean, ['Tên trạm', 'Ten tram'], 6)
+    col_ma_tram = get_col_name(df_clean, ['Mã trạm theo SU', 'Mã trạm'], 5)
+    col_trang_thai = get_col_name(df_clean, ['Trạng thái', 'Trang thai'], 14)
+    col_tinh = get_col_name(df_clean, ['Tỉnh', 'Tinh'], 17)
+    col_mien_dia_ly = get_col_name(df_clean, ['Miền địa lý', 'Mien dia ly'], 18)
+    col_lat = get_col_name(df_clean, ['Lat', 'LAT', 'Latitude'], 19)
+    col_long = get_col_name(df_clean, ['Long', 'LONG', 'Longitude'], 20)
 
-    # Chuyển đổi Lat và Long sang số
     df_clean[col_lat] = pd.to_numeric(df_clean[col_lat], errors='coerce')
     df_clean[col_long] = pd.to_numeric(df_clean[col_long], errors='coerce')
     df_clean = df_clean.dropna(subset=[col_lat, col_long])
@@ -258,7 +355,6 @@ try:
 
                     st.subheader("🎯 Kết quả 5 trạm gần nhất:")
 
-                    # HTML Bảng dữ liệu có thêm cột mở Google Map trực tiếp
                     html_code = """
                     <style>
                         .table-container {
@@ -314,9 +410,7 @@ try:
                             display: inline-block;
                             white-space: nowrap;
                         }
-                        .map-link-btn:hover {
-                            background-color: #0369a1;
-                        }
+                        .map-link-btn:hover { background-color: #0369a1; }
                         .badge-pass {
                             background-color: #10b981;
                             color: white;
