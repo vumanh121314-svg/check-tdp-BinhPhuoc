@@ -36,6 +36,21 @@ def set_vgreen_background():
         h1, h2, h3, p, span, label {{
             color: #f8fafc !important;
         }}
+
+        /* 1. TRIỆT TIÊU ICON CON MẮT TRONG Ô PASSWORD CỦA STREAMLIT */
+        button[aria-label="Show password"], 
+        button[aria-label="Hide password"],
+        div[data-testid="stTextInput"] button {{
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }}
+
+        /* 2. TRIỆT TIÊU NÚT REVEAL PASSWORD CỦA TRÌNH DUYỆT (EDGE / CHROME / SAFARI) */
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear {{
+            display: none !important;
+        }}
         </style>
         """,
         unsafe_allow_html=True
@@ -43,46 +58,56 @@ def set_vgreen_background():
 
 set_vgreen_background()
 
-# ==================== KHÓA BẢO MẬT BẰNG MẬT KHẨU ====================
+# ==================== BẢO MẬT & ĐĂNG NHẬP ====================
 APP_PASSWORD = "123456"
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
+if "login_error" not in st.session_state:
+    st.session_state.login_error = False
 
-def check_password():
-    if st.session_state.get("password_input") == APP_PASSWORD:
-        st.session_state.authenticated = True
-        del st.session_state["password_input"]  # Xóa mật khẩu khỏi session để an toàn
-    else:
-        st.error("❌ Mật khẩu không chính xác. Vui lòng nhập lại!")
-
-# Giao diện Đăng nhập nếu chưa xác thực
+# Xử lý khi chưa đăng nhập
 if not st.session_state.authenticated:
     col_l, col_center, col_r = st.columns([1, 1.2, 1])
     with col_center:
         st.markdown("<br><br>", unsafe_allow_html=True)
         st.markdown(
             """
-            <div style="background: rgba(15, 23, 42, 0.85); padding: 30px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 8px 32px rgba(0,0,0,0.5); text-align: center;">
-                <h2 style="color: #00e599; margin-bottom: 10px;">🔒 XÁC THỰC TRUY CẬP</h2>
-                <p style="color: #cbd5e1; font-size: 14px;">Vui lòng nhập mật khẩu để mở ứng dụng tra cứu trạm V-Green</p>
+            <div style="background: rgba(15, 23, 42, 0.88); padding: 26px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 8px 32px rgba(0,0,0,0.6); text-align: center; margin-bottom: 20px;">
+                <h2 style="color: #00e599; margin-bottom: 8px;">🔒 XÁC THỰC TRUY CẬP</h2>
+                <p style="color: #cbd5e1; font-size: 14px; margin: 0;">Vui lòng nhập mật khẩu chính xác để vào hệ thống tra cứu</p>
             </div>
             """,
             unsafe_allow_html=True
         )
-        st.text_input(
-            "Mật khẩu truy cập:",
-            type="password",
-            key="password_input",
-            placeholder="Nhập 123456...",
-            on_change=check_password
-        )
-        if st.button("🔓 Mở khóa", type="primary", use_container_width=True):
-            check_password()
 
-    st.stop()  # Dừng toàn bộ code bên dưới nếu chưa nhập đúng mật khẩu
+        # Hiển thị thông báo nếu lần trước nhập sai
+        if st.session_state.login_error:
+            st.error("❌ Mật khẩu không chính xác! Vui lòng nhập lại.")
 
-# ==================== GIAO DIỆN CHÍNH (ĐÃ ĐĂNG NHẬP THÀNH CÔNG) ====================
+        # Dùng st.form để khi bấm Đăng nhập hoặc Enter nếu sai sẽ tự làm mới (reset) ô nhập
+        with st.form("login_form", clear_on_submit=True):
+            entered_password = st.text_input(
+                "Mật khẩu truy cập:",
+                type="password",
+                placeholder="Nhập mật khẩu...",
+                help="Mật khẩu được mã hóa ẩn tuyệt đối"
+            )
+            submit_btn = st.form_submit_button("🔓 Mở khóa", type="primary", use_container_width=True)
+
+            if submit_btn:
+                if entered_password == APP_PASSWORD:
+                    st.session_state.authenticated = True
+                    st.session_state.login_error = False
+                    st.rerun()
+                else:
+                    st.session_state.authenticated = False
+                    st.session_state.login_error = True
+                    st.rerun()  # Load lại trang, ô mật khẩu tự động bị xóa trắng bắt nhập lại
+
+    st.stop()  # Ngăn chặn toàn bộ code ứng dụng bên dưới thực thi nếu chưa nhập đúng mật khẩu
+
+# ==================== GIAO DIỆN CHÍNH (KHI ĐÃ ĐĂNG NHẬP ĐÚNG) ====================
 header_col1, header_col2 = st.columns([5, 1])
 with header_col1:
     st.title("🔋 Tra cứu khoảng cách tủ đổi pin V-Green gần nhất")
@@ -90,6 +115,7 @@ with header_col2:
     st.write("")
     if st.button("🔒 Đăng xuất", type="secondary"):
         st.session_state.authenticated = False
+        st.session_state.login_error = False
         st.rerun()
 
 # ==================== KHU VỰC BẢN ĐỒ & ĐỊNH VỊ GPS ====================
