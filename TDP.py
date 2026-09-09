@@ -1,5 +1,5 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 import streamlit as st
 
 st.set_page_config(
@@ -12,16 +12,17 @@ st.title("📍 Tra cứu khoảng cách trạm gần nhất")
 
 # 1. Tải dữ liệu Data nền từ file Excel
 @st.cache_data
-def load_data():
-    df = pd.read_excel("DATA Trạm.xlsx", sheet_name="Data", skiprows=1)
+def load_data(file_source):
+    df = pd.read_excel(file_source, sheet_name="Data", skiprows=1)
     df.columns = [str(c).strip() for c in df.columns]
     return df
 
 try:
-    df_raw = load_data()
+    data_file = "DATA Trạm.xlsx"
+    df_raw = load_data(data_file)
     df_clean = df_raw.copy()
 
-    # Hàm tìm cột linh hoạt
+    # Hàm tìm cột linh hoạt theo tên hoặc vị trí dự phòng
     def get_col_name(df, possible_names, fallback_index):
         for name in possible_names:
             for col in df.columns:
@@ -32,14 +33,14 @@ try:
         return None
 
     # Xác định tên các cột dữ liệu
-    col_phan_loai = get_col_name(df_clean, ['Phân loại', 'Phan loai'], 1)       # Cột B (Loại Trạm)
-    col_ten_tram = get_col_name(df_clean, ['Tên trạm', 'Ten tram'], 6)          # Cột G
-    col_ma_tram = get_col_name(df_clean, ['Mã trạm theo SU', 'Mã trạm'], 5)    # Cột F
-    col_trang_thai = get_col_name(df_clean, ['Trạng thái', 'Trang thai'], 14)   # Cột O
-    col_tinh = get_col_name(df_clean, ['Tỉnh', 'Tinh'], 17)                     # Cột R
-    col_mien_dia_ly = get_col_name(df_clean, ['Miền địa lý', 'Mien dia ly'], 18)# Cột S
-    col_lat = get_col_name(df_clean, ['Lat', 'LAT', 'Latitude'], 19)            # Cột T
-    col_long = get_col_name(df_clean, ['Long', 'LONG', 'Longitude'], 20)        # Cột U
+    col_phan_loai = get_col_name(df_clean, ['Phân loại', 'Phan loai'], 1)        # Cột B
+    col_ten_tram = get_col_name(df_clean, ['Tên trạm', 'Ten tram'], 6)           # Cột G
+    col_ma_tram = get_col_name(df_clean, ['Mã trạm theo SU', 'Mã trạm'], 5)     # Cột F
+    col_trang_thai = get_col_name(df_clean, ['Trạng thái', 'Trang thai'], 14)    # Cột O
+    col_tinh = get_col_name(df_clean, ['Tỉnh', 'Tinh'], 17)                      # Cột R
+    col_mien_dia_ly = get_col_name(df_clean, ['Miền địa lý', 'Mien dia ly'], 18) # Cột S
+    col_lat = get_col_name(df_clean, ['Lat', 'LAT', 'Latitude'], 19)             # Cột T
+    col_long = get_col_name(df_clean, ['Long', 'LONG', 'Longitude'], 20)         # Cột U
 
     # Chuyển đổi Lat và Long sang số
     df_clean[col_lat] = pd.to_numeric(df_clean[col_lat], errors='coerce')
@@ -48,23 +49,33 @@ try:
     # Loại bỏ các hàng có tọa độ trống
     df_clean = df_clean.dropna(subset=[col_lat, col_long])
 
-    # Trích xuất Loại Trạm chỉ từ cột B (Phân loại)
+    # Trích xuất Loại Trạm
     def extract_loai_tram(row):
-        val_b = str(row[col_phan_loai]).strip() if col_phan_loai in row and pd.notna(row[col_phan_loai]) else ""
-        return val_b
+        return str(row[col_phan_loai]).strip() if col_phan_loai in row and pd.notna(row[col_phan_loai]) else ""
 
     df_clean['Loại Trạm Temp'] = df_clean.apply(extract_loai_tram, axis=1)
 
-    # 2. Ô dán tọa độ duy nhất
-    raw_coord = st.text_input(
-        "Dán tọa độ LATITUDE, LONGITUDE vào đây:",
-        value="10.734728, 106.663666",
-        placeholder="Ví dụ: 10.734728, 106.663666"
-    )
+    # 2. Giao diện nhập liệu
+    col_input1, col_input2 = st.columns([3, 1])
+    with col_input1:
+        raw_coord = st.text_input(
+            "Dán tọa độ LATITUDE, LONGITUDE vào đây:",
+            value="10.734728, 106.663666",
+            placeholder="Ví dụ: 10.734728, 106.663666"
+        )
+    with col_input2:
+        # Ngưỡng khoảng cách để đánh giá Đạt / Không đạt (đơn vị: mét)
+        threshold_m = st.number_input(
+            "Ngưỡng đạt khoảng cách (m):",
+            min_value=1.0,
+            value=500.0,
+            step=50.0,
+            help="Khoảng cách nhỏ hơn hoặc bằng giá trị này sẽ được tính là ĐẠT"
+        )
 
     if st.button("Tính khoảng cách", type="primary"):
         clean_input = raw_coord.strip().replace('\t', ',')
-        
+
         if ',' in clean_input:
             parts = [p.strip() for p in clean_input.split(',')]
         else:
@@ -79,7 +90,7 @@ try:
                     # Chuyển đổi Radians
                     lat1 = np.radians(input_lat)
                     lon1 = np.radians(input_lng)
-                    
+
                     lat2 = np.radians(df_clean[col_lat].values.astype(float))
                     lon2 = np.radians(df_clean[col_long].values.astype(float))
 
@@ -89,10 +100,10 @@ try:
                     a = np.sin(dlat / 2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2)**2
                     c = 2 * np.arcsin(np.sqrt(a))
                     r = 6371000  # Bán kính Trái Đất (m)
-                    
+
                     df_clean['Khoảng cách (m)'] = c * r
 
-                    # Sắp xếp theo khoảng cách
+                    # Sắp xếp theo khoảng cách tăng dần
                     df_sorted = df_clean.sort_values(by='Khoảng cách (m)').copy()
 
                     # Hàm gom nhóm dữ liệu trùng
@@ -121,9 +132,14 @@ try:
                     top5 = grouped.head(5).copy()
                     top5['Khoảng cách (m)'] = top5['Khoảng cách (m)'].round(2)
 
+                    # BỔ SUNG CỘT KẾT QUẢ ĐẠT / KHÔNG ĐẠT
+                    top5['Kết quả'] = top5['Khoảng cách (m)'].apply(
+                        lambda d: "Đạt" if d <= threshold_m else "Không đạt"
+                    )
+
                     st.subheader("🎯 Kết quả 5 trạm gần nhất:")
 
-                    # Mã HTML hiển thị bảng
+                    # HTML & CSS & JS Clipboard
                     html_code = """
                     <style>
                         .table-container {
@@ -167,19 +183,65 @@ try:
                         .copy-btn:hover {
                             background-color: #d33a3a;
                         }
+                        /* Badge Đạt / Không đạt */
+                        .badge-pass {
+                            background-color: #28a745;
+                            color: white;
+                            padding: 4px 8px;
+                            border-radius: 4px;
+                            font-weight: bold;
+                            font-size: 12px;
+                            display: inline-block;
+                            white-space: nowrap;
+                        }
+                        .badge-fail {
+                            background-color: #dc3545;
+                            color: white;
+                            padding: 4px 8px;
+                            border-radius: 4px;
+                            font-weight: bold;
+                            font-size: 12px;
+                            display: inline-block;
+                            white-space: nowrap;
+                        }
                     </style>
 
                     <script>
+                    function fallbackCopyTextToClipboard(text, btn) {
+                        var textArea = document.createElement("textarea");
+                        textArea.value = text;
+                        document.body.appendChild(textArea);
+                        textArea.focus();
+                        textArea.select();
+                        try {
+                            document.execCommand('copy');
+                            showCopied(btn);
+                        } catch (err) {
+                            console.error('Không thể copy', err);
+                        }
+                        document.body.removeChild(textArea);
+                    }
+
+                    function showCopied(btn) {
+                        var originalText = btn.innerHTML;
+                        btn.innerHTML = "✅ Đã Copy!";
+                        btn.style.backgroundColor = "#28a745";
+                        setTimeout(function() {
+                            btn.innerHTML = originalText;
+                            btn.style.backgroundColor = "#ff4b4b";
+                        }, 1500);
+                    }
+
                     function copyToClipboard(text, btn) {
-                        navigator.clipboard.writeText(text).then(function() {
-                            var originalText = btn.innerHTML;
-                            btn.innerHTML = "✅ Đã Copy!";
-                            btn.style.backgroundColor = "#28a745";
-                            setTimeout(function() {
-                                btn.innerHTML = originalText;
-                                btn.style.backgroundColor = "#ff4b4b";
-                            }, 1500);
-                        });
+                        if (navigator.clipboard && window.isSecureContext) {
+                            navigator.clipboard.writeText(text).then(function() {
+                                showCopied(btn);
+                            }).catch(function() {
+                                fallbackCopyTextToClipboard(text, btn);
+                            });
+                        } else {
+                            fallbackCopyTextToClipboard(text, btn);
+                        }
                     }
                     </script>
 
@@ -187,7 +249,8 @@ try:
                         <table class="custom-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 40px; text-align: center;"></th>
+                                    <th style="width: 40px; text-align: center;">STT</th>
+                                    <th>Kết quả</th>
                                     <th>Khoảng cách (m)</th>
                                     <th>Tên Trạm</th>
                                     <th>Mã Trạm</th>
@@ -209,22 +272,29 @@ try:
                         coord_str = f"{lat_val}, {long_val}"
                         loai_tram_val = str(row['Loại Trạm Temp']) if row['Loại Trạm Temp'] != "" else "-"
                         
+                        # Tạo badge nhãn Đạt / Không đạt
+                        if row['Kết quả'] == "Đạt":
+                            badge_html = '<span class="badge-pass">✔ Đạt</span>'
+                        else:
+                            badge_html = '<span class="badge-fail">✖ Không đạt</span>'
+
                         html_code += f"""
-                            <tr>
-                                <td style="text-align: center; color: #888888; font-weight: bold;">{idx}</td>
-                                <td><b>{row['Khoảng cách (m)']}</b></td>
-                                <td>{row[col_ten_tram]}</td>
-                                <td>{row[col_ma_tram]}</td>
-                                <td>{row[col_trang_thai]}</td>
-                                <td>{loai_tram_val}</td>
-                                <td>{row[col_tinh]}</td>
-                                <td>{row[col_mien_dia_ly]}</td>
-                                <td>{lat_val}</td>
-                                <td>{long_val}</td>
-                                <td style="text-align: center;">
-                                    <button class="copy-btn" onclick="copyToClipboard('{coord_str}', this)">📋 Copy</button>
-                                </td>
-                            </tr>
+                                <tr>
+                                    <td style="text-align: center; color: #888888; font-weight: bold;">{idx + 1}</td>
+                                    <td style="text-align: center;">{badge_html}</td>
+                                    <td><b>{row['Khoảng cách (m)']}</b></td>
+                                    <td>{row[col_ten_tram]}</td>
+                                    <td>{row[col_ma_tram]}</td>
+                                    <td>{row[col_trang_thai]}</td>
+                                    <td>{loai_tram_val}</td>
+                                    <td>{row[col_tinh]}</td>
+                                    <td>{row[col_mien_dia_ly]}</td>
+                                    <td>{lat_val}</td>
+                                    <td>{long_val}</td>
+                                    <td style="text-align: center;">
+                                        <button class="copy-btn" onclick="copyToClipboard('{coord_str}', this)">📋 Copy</button>
+                                    </td>
+                                </tr>
                         """
 
                     html_code += """
@@ -233,16 +303,14 @@ try:
                     </div>
                     """
 
-                    st.components.v1.html(html_code, height=500, scrolling=False)
+                    st.components.v1.html(html_code, height=450, scrolling=True)
 
             except ValueError:
                 st.error("Tọa độ nhập vào không hợp lệ. Vui lòng đảm bảo chỉ nhập số, ví dụ: 10.734728, 106.663666")
-                st.error("liên hệ Sếp để có cái biên bản")
         else:
             st.warning("Vui lòng nhập đầy đủ cả Vĩ độ và Kinh độ phân tách bởi dấu phẩy.")
-            st.error("liên hệ Sếp để có cái biên bản")
 
 except FileNotFoundError:
-    st.error("Không tìm thấy file 'DATA Trạm.xlsx'. Bạn hãy đảm bảo file này đã được tải lên cùng thư mục trên GitHub.")
+    st.error("⚠️ Không tìm thấy file 'DATA Trạm.xlsx'. Hãy đảm bảo file này nằm cùng thư mục chứa script chạy.")
 except Exception as e:
     st.error(f"Đã xảy ra lỗi: {e}")
